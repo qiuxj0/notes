@@ -1,0 +1,99 @@
+springcloud五大组件：eureka、Ribbon、Hystrix、Zuul、Spring Cloud Config
+访问Eureka出现红色文字，是一种Eureka的自我保护，长时间没有服务访问就会出现
+eureka的yml配置
+eureka:
+	instance:
+		instance-id: 修改eureka服务的实例显示名
+		hostname:eureka7003.com  eureka的服务端实例名称
+		prefer-ip-address:true  表示将服务器的IP作为访问路径
+	client:
+		register-with-eureka: false    false表示自己不需要向注册中心注册自己，一般用于eureka-service
+		fetch-registry: false   false表示自己就是注册中心，一般用于eureka-service
+		sevice-url:
+			defaultZone:http://${eureka.instance.hostname}:${server.port}/eureka/   eureka-service和eureka-client交互的地址，逗号分隔表示eureka-service集群
+eureka点击服务连接会跳到host:port/info地址，所以服务端要配置spring-boot-starter-actuator，即可访问，可在服务端yml配置info信息，例如:
+info:
+	app.name: ysy-microservicecloud
+	company.name: www.ysy.com
+	build.artifactId: $project.artifactId$
+	build.version: $project.version$s
+Eureka自我保护
+客户端(consumer)加上@LoadBalanced表示负载均衡
+eureka-server集群配置:
+	1.在eureka.client.service-url.defaultZone=  添加别的服务器地址
+	2.修改本服务器的eureka.instance.hostname和server.port
+	3.可以将hostname在hosts文件做域名映射，以便区分hostname，仅本地测试需要
+eureka-client(提供者)集群配置：
+	1.不同的client可以修改连接不同的数据库，不同的端口号，但是spring.application.name一定要相同
+Ribbon带有七种算法，可利用@Bean+配置类使用
+	RoundRobinRule(轮询算法)
+	RandomRule(随机算法)
+	AvailabilityFilteringRule()：会先过滤由于多次访问故障而处于断路器跳闸状态的服务，还有并发的连接数量超过阈值的服务，然后对剩余的服务列表按照轮询策略进行访问
+	WeightedResponseTimeRule()：根据平均响应的时间计算所有服务的权重，响应时间越快服务权重越大被选中的概率越高，刚启动时如果统计信息不足，则使用RoundRobinRule策略，等统计信息足够会切换到WeightedResponseTimeRule
+	RetryRule()：先按照RoundRobinRule的策略获取服务，如果获取失败则在制定时间内进行重试，获取可用的服务。
+	BestAviableRule()：会先过滤掉由于多次访问故障而处于断路器跳闸状态的服务，然后选择一个并发量最小的服务
+	ZoneAvoidanceRule()：默认规则，符合判断server所在区域的性能和server的可用性选择服务器
+Ribbon自定义配置负载均衡算法
+	主启动类标注@RibbonClient(name = "consumer-ticket", configuration = MySelfRule.class)，注意configuration中的class不能在ComponentScan下面，即不能和@SpringBootApplication下
+	自定义负载均衡算法返回IRule对象，并@Bean注入容器中，
+Euraka和Zookeeper-dubbo的比较
+	1.Eureka遵循AP，zookeeper遵循CP。CAP原则：一致性（Consistency）、可用性（Availability）、分区容错性（Partition tolerance）
+		Eureka保证服务一定被调用，即使服务器挂了，也能从缓存中调用，所以返回值不一定准确
+		Zookeeper保证数据一致性，所以会舍弃一些不活跃服务，导致无法访问
+Feign是一个声明式WebService客户端.使用Feign能让编写WebService客户端更加简单,它的使用方法是定义一个接口,然后在上面添加注解
+	1.在启动类上加@EnableFeignClients(basePackages = {"com.qiuxj.consumer.inter"})
+	2.接口中加@FeignClient(value = "PROVIDE-TICKET")
+Hystrix服务熔断和服务降级
+	熔断：服务(提供者)调用异常时，返回一个备选的结果
+	降级：服务(消费者)调用异常时，返回一个备选的结果
+	提供者：
+		1.引入spring-cloud-starter-netflix-hystrix包
+		2.@EnableHystrix开启Hystrix注解配置
+		3.@HystrixCommand(fallbackMethod = "getDefault")服务出错调用指定方法
+	消费者(结合Feign使用)：
+		FallBack:
+			1.feign.hystrix.enabled = true ，开启feign的Hystrix
+			2.实现@FeignClient标注的接口，重写接口方法作为熔断的方法，一定要加@Component注解
+			3.在接口@FeignClient(value = "provide-ticket",fallback = ConsumerServiceHystrixImpl.class)引入实现类
+		FallBackFactory：
+			1.feign.hystrix.enabled = true ，开启feign的Hystrix
+			2.自定义类实现FallbackFactory<ConsumerService>，并且重写create方法，返回@FeignClient标注的接口，类似于直接实现@FeignClient标注的接口
+			3.在接口@FeignClient(value = "provide-ticket",fallbackFactory = ConsumerFallBackFactory.class)引入自定义类
+		因为Feign内置了Hystrix，所以不需要另外引入jar包
+	DashBoard:可视化的监控
+		主启动类：
+			1.引入spring-cloud-starter-netflix-hystrix-dashboard
+			2.启动类添加@EnableHystrixDashboard
+			3.启动访问host:port/hystrix
+			4.输入其他微服务地址，host:port/actuator/hystrix.stream，即可监控
+			5.开启@FeignClient监控：配置文件配置feign.hystrix.enabled=true
+		其他被监控的微服务
+			1.引入spring-boot-starter-actuator，spring-cloud-starter-netflix-hystrix
+			2.启动类开启@EnableHystrix
+			3.配置management.endpoints.web.exposure.include=hystrix.stream,health,info，即可访问host:port/actuator/hystrix.stream
+			4.只能监控@HystrixCommand(fallbackMethod = "hystrixGet")标注的熔断方法
+Zuul:外部接口的统一访问网关
+	1.引入spring-cloud-starter-netflix-zuul
+	2.启动类标注@EnableZuulProxy
+	3.host:port/application.name/mappingurl访问
+	4.修改访问映射：zuul.routes.xxx.serviceId=application.name,zuul.routes.xxx.path=/path/**
+	5.使用zuul.ignored-services=application.name，隐藏原始服务名称，"*"表示隐藏所有
+	6.设置统一前缀：prefix=/xxx
+SpringCloud Config
+	1.github创建目录
+	2.引入spring-cloud-config-server
+	3.配置文件配置spring.cloud.config.server.git.uri=
+	4.启动类@EnableConfigServer
+	访问规则：
+		1./{application}/{profile}/{label}
+		2./{application}-{profile}.yml
+		3./{label}/{application}-{profile}.yml
+		4./{application}-{profile}.properties
+		5./{label}/{application}-{profile}.properties
+	客户端通过服务端获取配置
+		1.配置文件bootstrap.yml
+			spring.cloud.config.name=github资源名称
+			spring.cloud.config.profile=环境名称
+			spring.cloud.config.label=label名称
+			spring.cloud.config.uri=服务端地址
+		2.通过@Value("${}")取出github的配置项

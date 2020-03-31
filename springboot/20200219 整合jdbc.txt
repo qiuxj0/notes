@@ -1,0 +1,12 @@
+1.WEB开发
+	SpringBoot与数据访问
+	需要导入spring-boot-starter-data-xxxx，例如：spring-boot-starter-data-redis
+	整合JDBC和数据源
+	创建项目时勾选JDBC和Mysql以及Web模块,pom.xml会自动导入spring-boot-starter-jdbc和mysql-connector-java以及spring-boot-starter-web
+		只需要在aplication配置文件中配置spring.datasource.username等属性即可连接数据库
+	自动配置原理：
+		org.springframework.boot.autoconfigure.jdbc，有关数据源自动配置的包路径
+			其中org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration根据@ConditionalOnXXX各种判断配置数据源，SpringBoot默认支持的数据源都在里面
+			Generic内部类自定义数据源类型，利用反射创建相应类型的数据源，并且绑定相关属性
+			如果是建表的命名为schema-*.sql和data-*.sql在DataSourceInitializer中运行，自动执行其中的sql，注意springboot2.0以上要配置initialization-mode: always，其中schema: -classpath:xxx.sql 可以指定加载sql文件
+			springboot还自动配置了jdbcTemplate，直接用@Autowire可以加载，操作数据库。

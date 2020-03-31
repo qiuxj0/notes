@@ -1,0 +1,44 @@
+1.配置注解
+	@Component相当于<bean id="" class=""></bean>
+	@Value("")相当于<property name="" value=""></property>
+	@ConfigurationProperties默认获取全局配置文件application.properties或者application.yml
+	@ConfigurationProperties和@Value的区别：
+		1.前者支持批量注入属性，后者一个一个注入
+		2.前者支持松散绑定，不区分大小写，松散绑定(驼峰式)，后者不支持
+		3.前者不支持springEL表达式，后者支持
+		4.前者支持@Validated校验，后者不支持
+		5.前者支持复杂类型封装(Map、list和对象)，后者不支持
+	@PropertySource(value={"classpath:xxx.properties"})加载指定的配置文件
+	
+	在resouces下建立一个xxx.xml的配置文件，并注入，默认不会生效，可以用@ImportResource(locations={"classpath:xxx.xml}")启动生效
+	
+	SpringBoot推荐用配置类注解(@Configuration)的方式代替之前的xml配置文件
+		其中可以用@Bean注解将方法的返回值添加到容器中，注意：@Bean注解注入容器的名称和方法名一致
+		
+	配置文件占位符：${person.name}-获取其他属性，${person.name:default}设置默认值，${ramdom.uuid}设置随机
+		
+	Profile(多环境配置)：
+		1.多Profile文件：application-{profile}.properties：默认使用application.properties文件配置，在默认配置文件中spring.profiles.active={profile}可以激活使用环境
+		2.yml方式:使用---和换行，切换多文档环境，激活和上述类似
+		3.可以在IDEA运行配置中Program arguments中配置激活，--spring.profiles.active=dev
+		4.可以用cmd命令指定：java -jar xxx.jar --spring.profiles.active-dev
+		5.可以用虚拟机参数VM options激活：-Dspring.profiles.active=dev
+		
+	配置文件加载位置，以下优先级从高到低，高优先级加载了，低优先级不会加载，并且会形成互补配置
+		1.file:/config
+		2.file:/
+		3.classpath:/config
+		4.classpath:/
+	可以通过spring.config.location=改变配置文件位置，用cmd命令java -jar xxx.jar --spring.config.location=  执行。server.servlet.context-path=  可以改变项目后缀
+	
+	SpringBoot自动配置原理，以META-INF/spring.factories其中的一个类HttpEncodingAutoConfiguration为例：
+		@Configuration(proxyBeanMethods = false) 表明这是个配置类
+		@EnableConfigurationProperties({HttpProperties.class}) 加载指定类的Properties配置(@ConfigurationProperties(prefix = "spring.http"))
+		@ConditionalOnXXXX  spring底层的condition注解，满足指定条件，整个配置类才能生效
+		@ConditionalOnWebApplication(type = Type.SERVLET)	判断当前应用是否为Web应用
+		@ConditionalOnClass({CharacterEncodingFilter.class})	判断有没有这个类，CharacterEncodingFilter是springMVC用来解决乱码的过滤器
+		@ConditionalOnProperty(prefix = "spring.http.encoding",value = {"enabled"},matchIfMissing = true)	判断配置文件是否有这个配置，如果没有，默认为true
+		其中characterEncodingFilter()中的返回的对象，就是由Properties文件对应的JAVA对象提供的
+		
+	可以在配置文件debug=true打印SpringBoot自动配置报告，显示哪些自动配置类生效
+		

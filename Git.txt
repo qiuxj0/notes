@@ -1,0 +1,61 @@
+本地库初始化
+	1.mkdir新建目录
+	2.在新建目录下git init初始化，会生成.git目录
+设置签名
+	级别
+		1.项目级别：git config user.name xxx,git config user.email xxxx 保存在.git/config文件中
+		2.系统级别：git config --global user.name xxx 
+提交
+	1.git status查看状态
+	2.git add 文件名，提交文件至暂存区
+	3.git rm --cached 文件名，删除暂存区文件
+	4.git commit 文件名，提交文件  -m标注注释：git commit -m xxx 文件名
+	5.git log 查看提交日志 加上pretty=oneline日志一行显示，或者--oneline显示的主键更短，或者git reflog：显示的主键短、版本回退提示
+	6.git reset --hard id 指定历史版本为最新版本，^表示只能后退例如git reset --hard HEAD^^，~也是只能后退例如 git reset --hard HEAD~3
+		1.--soft:只会移动本地库的HEAD指针
+		2.--mixed:移动HEAD指针，重置暂存区
+		3.--hard:移动HEAD指针，重置暂存区，重置工作区
+比较
+	1.git differ 文件名：比较文件差异，红色表示删除行，绿色表示新增行
+分支
+	1.git branch -v查看分支
+	2.git branch 分支名，创建分支
+	3.git checkout 分支名，切换分支
+	合并分支
+		1.切换到被合并的分支
+		2.git merge 分支名，合并分支
+		解决冲突
+			1.<<<<<<< HEAD：下一行表示当前修改项
+			2.======= ：表示分隔符
+			3.>>>>>>> 分支名：上一行表示其他分支的修改项
+			4.切换到任一冲突分支，vim编辑冲突文件，然后git add、git commit提交即可
+远程推送
+	1.git remote -v：查看远程链接
+	2.git remote add 别名 链接：添加远程推送链接地址
+	3.git push 远程别名 分支名
+	4.git clone 远程链接，有三个效果：1.克隆远程目录和文件 2.创建远程链接别名 3.初始化本地库
+	Fork
+		1.fork别人的项目
+		2.本地编辑上传自己的github
+		3.分支pull request推送到别人的项目上
+		4.主流项目pull request接受分支的修改
+		5.git pull origin master 拉取pull request的信息，在本地修改并上传
+SSH免密登录
+	1.ssh-keygen -t rsa -C“your_email@example.com”
+	2.cat ~/.ssh/id_rsa.pub，复制密钥
+	3.在github设置里的SSH and GPG keys菜单中，new SSH key
+	4.git remote add SSH项目地址 ，即可不需要密码远程推送
+Eclipse
+	1.初始化为本地库
+		1.Team-Git，create repository
+		2.在设置-Team-Git-Configuration中可以看到创建的git工程信息，add Entry添加签名
+	2.开发阶段
+		1.忽略文件：http://github.com/github/gitignore官网找到Java.gitignore
+		2.下载放置home目录下，添加.classpath,.project,.settings,target忽略目录和文件
+		3.在home文件下，配置.gitconfig文件，添加[core] excludesfile=c:/Users/Mr.Q/java.gitignore
+		4.add toindex 提交到缓存区
+		5.commit 提交到本地库
+	3.推送到远程库
+		1.Team-Remote-Push，粘贴github地址，填写用户名和密码
+	4.导入远程库工程
+		1.new project-git，粘贴github地址

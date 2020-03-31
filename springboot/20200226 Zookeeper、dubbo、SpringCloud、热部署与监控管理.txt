@@ -1,0 +1,66 @@
+Springboot高级应用
+	SpringBoot与分布式
+		Zookeeper
+			zookeeper有三个端口，分别是客户端、集群、选举
+			docker run --name ZK -p 2181:2181 --restart always -d 镜像ID ，--restart always 跟随docker自动重启
+		创建工程：
+			1.创建空工程，在project structure-modules创建一个服务提供者(springboot工程)，编写自定义接口和实现类
+			2.在project structure-modules创建一个服务消费者(springboot工程)，编写自定义接口和实现类
+				提供者：
+					1.引入dubbo-spring-boot-starter包和zkclient(zookeeper)包
+					2.添加配置dubbo.application.name=provider(应用名)，
+						dubbo.registry.address==zookeeper://host:port(连接zookeeper)，
+						dubbo.scan.base-package=com.xxx.xxx(发布指定包)
+					3.在实现类中添加@Service(dubbo包下的service)，和@Component
+				消费者：
+					1.引入dubbo-spring-boot-starter包和zkclient(zookeeper)包
+					2.添加配置dubbo.application.name=provider(应用名)，
+						dubbo.registry.address==zookeeper://host:port(连接zookeeper)，
+						dubbo.scan.base-package=com.xxx.xxx(发布指定包)
+					3.导入提供者的api包
+					4.在提供者的接口声明中用@Reference(dubbo包下)引用
+		调用步骤：
+			1.提供者将消息发布到Zookeeper中，消费者通过zookeeper订阅服务调用提供者
+		SpringCloud：分布式的整理解决方案，提供了分布式系统(配置管理，服务发现，熔断，路由，微代理，控制总线，一次性Token，全局锁，leader选举，分布式session，集群)
+			常用五大组件
+				1.服务发现(Netflix Eureka)：类似于Zookeeper
+				2.负载均衡(Netflix Ribbon)
+				3.断路器(Netflix Hystrix):调用失败后，再次调用立即响应失败，不用再次等待
+				4.服务网关(Netflix Zuul)：过滤请求
+				5.分布式配置 Spring Cloud Config
+			创建工程：
+				1.创建空工程，注册中心勾选Spring Cloud Discovery的Eureka Server
+					配置eureka.instance.hostname=主机名
+					eureka.client.register-with-eureka=false不把本身作为客户端注册到eureka
+					eureka.client.fetch-registry=false不从eureka上获取服务的注册信息
+					eureka.service-url= ，默认为defaultZone，http://localhost:8761/eureka/
+					@EnableEurekaServer启用注册中心
+					启动访问http://localhost:8761 即可访问注册中心
+				2.服务提供者勾选Spring Cloud Discovery的Eureka Discovery Client
+					配置eureka.service-url=	注册中心地址
+						eureka.instance.prefer-ip-address: true 注册服务时使用IP
+						spring.application.name=  配置应用名
+				3.服务消费者勾选Spring Cloud Discovery的Eureka Discovery Client
+					配置eureka.service-url=	注册中心地址
+						eureka.instance.prefer-ip-address: true 注册服务时使用IP
+						spring.application.name=  配置应用名
+					@EnableDiscoveryClient 开启发现服务 ，需要将RestTemplate注入到容器中
+					restTemplate.getForObject("http://provide-ticket/ticket",String.class);使用restTemplate远程调用提供者url=http://服务者的应用名/请求方法
+					@LoadBalanced 负载均衡
+					标注在restTemplate上，当restTemplate访问提供者时，会根据访问量循环访问
+	SpringBoot热部署
+		官方推荐使用spring-boot-devtools
+		引入依赖包后，更改代码build project(IDEA按ctrl+F9编译，eclipse按ctrl+s保存会自动编译)即可
+	SpringBoot与监控管理
+		1.引入spring-boot-starter-actuator
+		2.management.endpoints.web.exposure.include=* 
+		3.访问时需要加上/actuator前缀 ，监控项目见官方文档：https://docs.spring.io/spring-boot/docs/current/reference/html/production-ready-features.html#production-ready-endpoints
+		定制端点信息
+			1.编写一个指示器，必须实现HealthIndicator
+			2.指示器名字，必须起名为xxxHealthIndicator
+				health()实现自定义的检查方法
+					Health.up().withDetail("msg","服务器正常"),build()表示正常
+					Health.down().withDetail("msg","服务器异常").build();表示异常
+				getHealth(boolean includeDetails)
+			3.加入到IOC容器中
+		

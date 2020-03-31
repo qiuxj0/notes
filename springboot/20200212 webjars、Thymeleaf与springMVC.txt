@@ -1,0 +1,87 @@
+1.WEB开发
+	WebMvcAutoConfiguration类中的addResourceHandlers方法：
+		/webjars/**的请求都去classpath:/META-INF/resources/webjars/中找
+		https://www.webjars.org/ 提供了如jquery的Maven依赖包
+		如果匹配不到资源，则会去这几个目录下找："classpath:/META-INF/resources/", "classpath:/resources/", "classpath:/static/", "classpath:/public/", "/"当前项目的根路径
+		欢迎页：静态文件夹的所有目录下的index.html页面，被/**映射
+		网页上的小图标在所有静态文件夹的目录下找/favicon.ico
+		设置静态文件目录：spring.resources.static-locations=classpath:/dir1/,classpath:/dir2/
+	模板引擎学习FreeMarker、Thymeleaf
+	Thymeleaf：ThymeleafProperties
+		只要把html放classpath:/templates/即可自动渲染
+		html页面头上加：<html lang="en" xmlns:th="http://www.thymeleaf.org">，就能有thymeleaf的提示
+		th:text="${key}" 改变文本内容
+		th:insert和th:replace相当于jsp中的<jsp:include=""/>
+		th:each相当于jsp的<c:foreach>
+		th:if相当于jsp的<c:if>
+		th:object相当于jsp的<c:set>
+		th:attr和th:attrprepend和th:attrappend：属性修改
+		th:value、th:href、th:src 修改指定属性值
+		th:text和th:utext，修改标签里内容。utext不转义特殊字符比如<h1></h1>
+		Simple expressions（表达式语法）:
+			[1]Variable Expressions: ${...} 获取变量值：1.获取对象的属性，2.调用方法 3.使用内置的基本对象 #ctx、#vars、#locale、#request、#response、#session、#servletContext 
+				4.内置工具对象 #dates #calendars #numbers #strings #objects #bools #arrays #lists #sets #maps 等
+			例如${person.father.name}、${personsArray[0].name}、${person.createCompleteNameWithSeparator('-')}、${#locale.country}、${param.size()}、${session.isEmpty()}、
+					${#strings.length(str)}
+			[2]Selection Variable Expressions: *{...} 和${}在功能上是一样的，但是多一种用法，配合th:object可以快速的取标签内的对象属性，如:
+				<div th:object="${session.user}">
+					<p>Name: <span th:text="*{firstName}">Sebastian</span>.</p>
+					<p>Surname: <span th:text="*{lastName}">Pepper</span>.</p>
+					<p>Nationality: <span th:text="*{nationality}">Saturn</span>.</p>
+				</div>
+			[3]Message Expressions: #{...} 获取国际化内容
+			Link URL Expressions: @{...}定义url链接 如：th:href="@{http://localhost:8080/gtvg/order/details(orderId=${o.id},key=${value})}"> 		
+				th:href="@{/order/details(orderId=${o.id})}" 即代表当前项目下的请求
+			Fragment Expressions: ~{...} 片段引用表达式：
+			Literals 字面量运算
+				Text literals: 'one text' , 'Another one!' ,…	字符运算
+				Number literals: 0 , 34 , 3.0 , 12.3 ,…	数学运算
+				Boolean literals: true , false	布尔运算
+				Null literal: null
+				Literal tokens: one , sometext , main ,…
+			Text operations:文本操作
+				String concatenation: +
+				Literal substitutions: |The name is ${name}|
+			Arithmetic operations:数学运算
+				Binary operators: + , - , * , / , %
+				Minus sign (unary operator): -
+			Boolean operations:布尔运算
+				Binary operators: and , or
+				Boolean negation (unary operator): ! , not
+			Comparisons and equality:比较运算
+				Comparators: > , < , >= , <= ( gt , lt , ge , le )
+				Equality operators: == , != ( eq , ne )
+			Conditional operators:条件运算
+				If-then: (if) ? (then)
+				If-then-else: (if) ? (then) : (else)
+				Default: (value) ?: (defaultvalue)
+			Special tokens:无操作
+				No-Operation: _
+				
+	SpringMVC自动配置，WebMvcAutoConfiguration分析
+		[1]自动配置了视图解析器(ViewResolver)：在WebMvcAutoConfiguration中组建了ContentNegotiatingViewResolver，而在ContentNegotiatingViewResolver中使用BeanFactory获取了所有的
+		ViewResolver并封装返回，所以我们可以自己定义一个ViewResolver，也会被系统自动组装进去，可以在DispatcherServlet.doDispatcher()中验证
+		[2]静态资源文件夹路径，见上述
+		[3]favicon.ico，见上述
+		[4]Converter 类型转换组件，页面提交属性自动转换成后台JAVA匹配的属性。
+		[5]Formatter 格式转化器，比如将2020-02-12转换成Date类型，Formatter的自动配置和ViewResolver类似(GenericConverter、Converter、Printer、Parser)
+		[6]MessageCodesResolver 定义错误代码生成规则
+		[7]ConfigurableWebBindingInitializer 初始化Web数据绑定器，比如请求数据的参数封装到JAVA对象中。也是从容器中拿，可以自定义
+		
+	修改SpringBoot的默认配置：SpringBoot一般都是先看用户有没有自己配置（@Bean、@Component），如果有则先用用户配置的，如果没有才用默认的，有些组件会将两者组合起来
+	
+	扩展SpringMVC，编写@Configuration配置类，即保留了原有的默认配置，又添加了用户配置，例子如下：
+		@Configuration
+		public class MyMvcConfig implements WebMvcConfigurer {
+			@Override
+			public void addViewControllers(ViewControllerRegistry registry) {
+				registry.addViewController("/hello02").setViewName("success");
+			}
+		}
+		@Import({EnableWebMvcConfiguration.class})，其父类DelegatingWebMvcConfiguration都调用了WebMvcConfigurerComposite.addWebMvcConfigurers(configurers);将所有的WebMvcConfigurer都添加进去，所以用户配置的WebMvcConfigurer才会生效
+		
+		@EnableWebMvc 表示全面接管SpringBoot的SpringMVC自动配置，即SpringBoot对SpringMVC全部失效，只保留用户手动配置的。原理是由于WebMvcAutoConfiguration中有个判断条件@ConditionalOnMissingBean({WebMvcConfigurationSupport.class})而@EnableWebMvc中的DelegatingWebMvcConfiguration恰好就是使条件不成立的关键，使得WebMvcAutoConfiguration配置类失效
+		
+		SpringBoot有很多xxxConfigurer供我们扩展
+		
+		我们可以利用WebMvcConfigurer的实现，可以添加自定义的视图解析器，避免Controller有很多空方法出现

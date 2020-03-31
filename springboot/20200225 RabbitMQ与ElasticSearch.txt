@@ -1,0 +1,98 @@
+Springboot高级应用
+	SpringBoot与消息
+		提升系统异步通信，扩展解耦能力
+		消息代理：接收消息的服务器
+		目的地：两种传输方式
+			(1)队列：点对点消息通信(point-to-point)，消息只有唯一的发布者和接受者，但是消费者不唯一，且消费了一条消息就不能被其他者消费
+			(2)主题：发布(publish)/订阅(subscribe)消息，发布者将消息发布到主题(Topic)中，多个消费者可以监听主题，只要消息到达主题，立即可被其他者同时消费。
+		规范：
+			JMS(Java Message Service) java消息服务，常见的有ActiveMQ、HornetMQ
+			AMQP(Advanced Message Queuing Protocol)高级消息队列协议，能兼容JMS，如RabbitMQ
+			对比：
+				1.前者java定义的不支持跨语言跨平台，后者是网络协议定义的支持跨语言和平台
+				2.前者提供两种消息模型，后者提供五种
+				3.前者支持多种消息类型，后者只能发送字节数据byte[]
+		RabbitMQ：
+			1.消息(Message)由消息头和消息体组成，消息体不透明，消息头由可选属性组成，例如，routing-key(路由键)、priority(优先权)、delivery-mode(持久性存储)等
+			2.发送者(publisher)，向交换器发布消息的客户端
+			3.交换器(Exchange)，接收发送者发送的消息，并将消息路由给其他队列，有4种类型：direct(默认)、fanout、topic、headers
+			4.消息队列(Queue)：保存消息的容器，消息一直在队列里等到消费者取走
+			5.绑定(Binding)：用于消息队列和交换器的关联，可以多对多
+			6.网络连接(Connection)，比如一个TCP连接
+			7.信道(Channel)，一个连接可以开多个信道，用来节省连接资源
+			8.消费者(Consumer)，消费消息队列
+			9.虚拟主机(Virtual Host),将整个RabbitMQ划分成若干个虚拟主机，每一个虚拟主机都可单独运行，默认虚拟主机是/
+			10.消息代理(Broker)，消息队列服务器的实体
+			过程：发送者(publisher)先把消息(Message)发送到虚拟主机(Virtual Host)，虚拟机分配到指定的交换器(Exchange)，交换器根据消息的路由键和绑定(Binding)规则，
+				  分配到消息队列(Queue)中，此时消费者(Consumer)和消息队列(Queue)建立网络连接(Connection)开启信道(Channel)，即可从消息队列拿到消息
+			主要核心是交换器(Exchange)和绑定(Binding)规则
+				交换器：
+					1.direct：消息的路由键和消息队列的绑定键完全一致，就会发送到相应的队列中
+					2.fanout：忽略路由键，给绑定交换器的所有消息队列都发送消息，速度最快
+					3.topic：模糊匹配，#匹配多个，*匹配一个。
+		RabbitMQ整合：
+			1.安装
+				docker pull rabbitmq:3-management，带management有管理界面
+			2.启动
+				docker -d -p 5672:5672 -p 15672:15672 --name myrabbitmq 镜像ID ，5672客户端连接端口，15672可视化管理界面
+			3.访问
+				host:15672  guest/guest登录
+				添加Exchanges交换器，Durability：Durable表示持久性，重启后仍然存在。
+				添加Queues消息队列
+				点入交换器-Bindings，添加队列绑定
+				在Exchanges下面可以publish message发布消息。在Queues消息队列中可以获取到消息
+			4.创建springboot项目，勾选rabbitmq和web模块
+				RabbitAutoConfiguration，导入了RabbitProperties，所以rabbitmq的配置都在spring.rabbitmq配置
+					配置
+						spring.rabbitmq.host=，
+						spring.rabbitmq.username=guest,
+						spring.rabbitmq.password=guest,
+						spring.rabbitmq.post=5672(不配置默认也是5672)
+						spring.rabbitmq.virtual-host= (不配置默认为/)
+					RabbitTemplate：给rabbitmq接收和发送消息
+						rabbitTemplate.send(exchange,routeKey,message)，需要自己定义消息体内容(byte[])和消息头(MessageProperties)Message对象
+						rabbitTemplate.convertAndSend(exchange,routeKey,Object) 自动将对象序列化成消息体发送
+						rabbitTemplate.receiveAndConvert("key") 将收到的数据自动转成为Object对象
+						RabbitTemplate默认使用的是jdk编译转换器，如果要更换成别的可以自定义MessageConverter
+							创建一个配置类，@Bean注入new Jackson2JsonMessageConverter()，即可注入json格式的编译转换器
+					AmqpAdmin：rabbitmq的系统管理组件，相当于可视化的rabbitmq操作，对交换器、队列及绑定进行设置，凡是以declare开头的方法都是创建
+						amqpAdmin.declareExchange(new DirectExchange("exchange-name")) 创建交换器，可以创建DirectExchange、FanoutExchange、CustomExchange(自定义)、
+							TopicExchange、HeadersExchange
+						amqpAdmin.declareQueue(new Queue("queue-name"))，创建队列
+						amqpAdmin.declareBinding(new Binding("destination绑定目标-可选队列名",Binding.DestinationType绑定类型，交换器名称，路由键，Map参数));创建绑定规则
+						amqpAdmin.delete()删除操作
+					@EnableRabbit，开启基于注解的RabbitMQ
+					@RabbitListener(quenes="routeKey")：作用于方法上，监听消息队列，如果监听到则执行方法
+	
+	SpringBoot与检索
+		ElasticSearch：目前全文检索的首选，是一个分布式的搜索服务，提供RestFul Api，底层基于Lucene
+			1.安装：docker pull elasticsearch
+			2.启动：docker run -e ES_JAVA_OPTS="-Xms256m -Xmx256m" -d -p 9200:9200 -p 9300:9300 --name MyES01 镜像ID 。-e ES_JAVA_OPTS指定堆内存大小，默认设置2G
+			3.访问：host:9200，能够看到json数据就成功了
+			面向文档存储，作为JSON文档的序列化格式，会自动索引、检索、排序、过滤。
+				索引对应多个类型，类型对应多个文档，文档中有很多属性。就像数据库对应多个表，表对应多行记录，记录中有很多属性
+			使用PostMan给ES发送请求，地址由：host:port/索引/类型/文档  组成
+				PUT请求，Body中可写JSON格式属性，PUT请求表示添加信息，同一地址添加会改变版本号属性
+				GET请求，获取信息
+					host:port/索引/类型/_search：搜索所有员工
+					host:port/索引/类型/_search?q=字段:值，条件查询属性值
+				POST请求：host:port/索引/类型/_search：请求体：{"query":{"match":{"last-name":"Smith"}}}，发送JSON格式的请求体也可以查询，模糊匹配，会显示匹配度；match_phrase，短语搜索，完全匹配；{"hightlight":{"fileds":{"about":{}}}，高亮搜索显示
+				DELETE请求，删除信息
+				HEAD请求，检查是否存在信息
+		整合ElasticSearch：
+			1.创建项目，勾选elasticSearch，pom.xml会自动导入spring-boot-starter-data-elasticsearch
+			2.自动配置
+				org.springframework.boot.autoconfigure.data.elasticsearch这个包下包括了所有的自动配置
+					spring.data.elasticsearch.cluster-name=	host:9200的name
+					spring.data.elasticsearch.cluster-nodes= host:9300
+					启动项目时有可能ES版本不匹配导致连接超时错误，百度spring-data-elasticsearch与elasticsearch版本对应，即可查看版本适配对应
+					操作ES：
+						1.编写自定义接口继承ElasticsearchRepository<数据类型，主键类型>，操作ES，与JPA类似
+							创建JAVA bean，@Document(indexname = "索引名", type="类型")注解声明类型和索引，使用自定义的elasticsearchRepository.index(bean)可直接添加，直接在自定义接口写类名，不用实现即可查询
+						2.使用ElasticSearchTemplate操作ES
+				org.springframework.boot.autoconfigure.elasticsearch.jest以HTTP的方式和ES进行交互，不推荐使用
+					spring.elasticsearch.jest.uris=   JestProperties默认为http://localhost:9200
+					添加到ES：创建一个对象，使用@JestId属性标注主键；new Index.Builder(bean).index("索引").type("类型").build()  构建一个索引；使用JestClient操作，
+						jestClient.execute(index)插入索引
+					搜索ES：new Search.Builder(json).addIndex("索引").addType("类型"),json是上述的请求体。SearchResult result = jestClient.execute(search);搜索
+						result.getJsonToString();取出

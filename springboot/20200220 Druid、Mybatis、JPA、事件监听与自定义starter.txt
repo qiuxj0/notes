@@ -1,0 +1,68 @@
+1.WEB开发
+	使用druid数据源 步骤见https://www.cnblogs.com/SimpleWu/p/10049825.html
+		使用spring.datasource.type: com.alibaba.druid.pool.DruidDataSource
+		添加druid的属性默认不起作用，application.yml文件标黄
+			解决方法:编写一个配置类，@Bean注入DruidDataSource，并且使用@ConfigurationProperties(prefix = "spring.datasource")注解使得配置生效
+		Druid的最强大之处在于它有着强大的监控，可以监控我们发送到数据库的所有sql语句。方便我们后期排插错误。
+		Druid监控：
+			配置一个监控注册的servlet对象,使用@Bean注入ServletRegistrationBean组件，ServletRegistrationBean添加alibaba的StatViewServlet进行管理，并且可以配置用户名密码等信息。
+			配置一个监控的Filter，使用@Bean注入FilterRegistrationBean组件，FilterRegistrationBean添加alibaba的WebStatFilter进行拦截。
+		/druid/login.html进入druid管理后台，
+	整合Mybatis
+		创建项目选择jdbc、mybatis、web、mysql，mybatis-spring-boot-starter并非springboot官方，而是mybatis适配springboot
+		注解版：使用@Mapper注解创建接口，直接在接口方法上注解@Select等写sql，然后调用此mapper。@Options(useGeneratedKeys = true,keyProperty="id")使用自动增长的key，并且将主键注入对象
+			启用驼峰式：可以定义一个配置类，给容器中添加一个ConfigurationCustomizer，设置configuration.setMapUnderscoreToCamelCase(true);
+			批量扫mapper接口:@MapperScan(value = "com.qiuxj.springboot.mapper")
+		*mapper.xml映射文件：在github上搜索mybatis，找到官方网站后进入Getting started，里面有配置文件的示例。需要在配置文件指定mybatis.config-location: classpath:mybatis/xxx.xml，mybatis.mapper-locations: classpath:mybatis/mapper/*.xml
+	整合JPA
+		1.定义@Entity实体类
+		2.接口继承JpaRepository<实体类，实体类主键类型>，来完成对数据库的操作
+		3.配置spring.jpa.hibernate.ddl-auto:update，项目启动自动更新数据库表结构，spring.jpa.show-sql:true。其余的配置都在spring.jpa中
+		4.创建controller，直接使用自定义的Repository类进行数据库查询
+	SpringBoot启动流程
+		1.创建SpringApplication对象
+			1.primarySources保存主配置类
+			2.deduceEnvironmentClass()判断是否为web应用
+			3.从META-INF/spring.factories找到所有ApplicationContextInitializer类，然后保存起来
+			4.和3一样，找到所有ApplicationListener类，然后保存起来
+			5.deduceMainApplicationClass()从多个配置类中，找到有main方法的主配置类
+		2.run()
+			1.getRunListeners()，从META-INF/spring.factories获取SpringApplicationRunListeners
+			2.调用所有的SpringApplicationRunListener.starting()
+			3.prepareEnvironment()：创建环境，完成后回调所有的SpringApplicationRunListener.environmentPrepared()准备环境
+			4.打印banner图标
+			5.createApplicationContext()创建IOC容器，判断是否为web应用，然后用BeanUtils.instantiateClass(contextClass)反射创建容器
+			6.prepareContext()准备上下文，用IOC容器把environment保存起来
+				1.applyInitializers()获取所有的ApplicationContextInitializer，然后调用initialize()方法
+				2.listeners.contextPrepared(context);回调所有的SpringApplicationRunListener.contextPrepared()方法
+				3.回调所有的SpringApplicationRunListener.contextLoaded()方法
+			7.refreshContext(context);ioc组件的初始化
+			8.afterRefresh();
+				callRunners()从ioc容器中获取所有的ApplicationRunner和CommandLineRunner然后进行回调，先回调ApplicationRunner，再回调CommandLineRunner
+			9.返回context，返回ioc容器，包括所有的组件
+		所以我们可以看到所有的ApplicationContextInitializer和SpringApplicationRunListener都是从META-INF/spring.factories获取的，而ApplicationRunner和CommandLineRunner会放在ioc 容器当中
+	事件监听机制
+		1.自定义一个ApplicationContextInitializer类，实现ApplicationContextInitializer<ConfigurableApplicationContext>
+		2.自定义一个SpringApplicationRunListener类，实现SpringApplicationRunListener，注意一定要有参构造方法
+	自定义spring-boot-starter
+		1.@Configuration
+		2.@ConditionalOnXXX，大量的判断
+		3.@AutoConfigureAfter 指定自动配置类的顺序
+		4.@Bean 给容器添加组件
+		5.@ConfigurationProperties结合xxxProperties类来绑定相关的配置
+		6.@EnableConfigurationProperties 使得xxxProperties类生效并加入到容器中自动装配
+		自动配置类的加载：需要将自动配置类放置在META-INF/spring.factories的org.springframework.boot.autoconfigure.EnableAutoConfiguration属性中配置
+		设计模式
+			1.启动器，只用来做依赖导入，依赖于自动配置，别人只需要引入启动器(starter)即可
+			2.专门写一个自动配置模块
+			3.建议命名:自定义名称-spring-boot-starter
+		实践操作
+			1.创建一个空工程，在project structure-modules中新增两个New Modules，一个空的maven工程(启动器starter)，一个spring initializr(自动配置)
+			2.用spring initializr工程作为starter的自动配置，用maven工程依赖引用spring initializr工程。
+				1.先创建一个xxxProperties类，属性依赖于配置文件的指定属性，例如@ConfigurationProperties(prefix = "qiuxj.hello")
+				2.定义一个业务类，写上具体实现的功能，可以引用xxxProperties的属性
+				3.定义一个xxxAutoConfiguration类，可以加多个ConditionalOnxxx判断，将业务类@Bean注入到容器中
+			3.将两个工程都maven-lifecycle-install
+			4.创建另一个工程，引入启动器即可
+	
+			

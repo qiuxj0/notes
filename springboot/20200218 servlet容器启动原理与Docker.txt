@@ -1,0 +1,50 @@
+1.WEB开发
+	Servlet容器启动原理
+		SpringBoot启动时候调用SpringApplication.run()方法，context = this.createApplicationContext();根据应用程序类型创建对应的容器对象，this.refreshContext(context);刷新IOC容器，
+		并创建容器中的每一个组件，调用了父类的AbstractApplicationContext.refresh()方法，子类重写父类的onRefresh()方法
+	使用外置的Sevlet容器，外置Tomcat+war包应用打包
+		1.IDEA勾选war包创建springboot项目，在Project Structure-modules-Web中，自动创建Web Resource Directory的webapps目录和web.xml文件，注意写完全路径名src\main\webapp\WEB-INF\web.xml
+		2.将嵌入式的pom.xml文件的spring-boot-starter-tomcat设置为<scope>provided</scope>，指目标环境有Tomcat，打包时忽略自带的Tomcat。(IDEA会自动创建)
+		3.比如编写一个类继承SpringBootServletInitializer，并实现configure方法(IDEA会自动创建)。传入主程序即可：return application.sources(SpringBoot04WebJspApplication.class);
+		原理
+		jar包：执行SpringBoot主方法，启动IOC容器，创建嵌入式的Servlet容器
+		war包：启动服务器，启动SpringBoot应用，启动IOC容器。由SpringBootServletInitializer启动SpringBoot应用
+		@HandleTypes：在应用启动时加载我们需要的类,配合SpringBootServletInitializer实现类执行。
+		在Spring-web包下有这个文件META-INF\services\javax.servlet.ServletContainerInitializer
+			SpringServletContainerInitializer将@HandleTypes标注的WebApplicationInitializer类传入onStartup方法的集合里，并(非接口)创建对象，再调用各自的onStartup()方法
+			ServletInitializer就是一个WebApplicationInitializer类，调用父类SpringBootServletInitializer的onStartup方法，其核心是createRootApplicationContext()方法
+			createRootApplicationContext()中又调用了configure()方法，这个就是由子类ServletInitializer重写的方法()，将SpringBoot主程序类传入进去
+			之后创建SpringApplication，然后run()，就是运行@SpringBootApplication主类的方法
+			
+SpringBoot与Docker
+	Docker：开源的应用服务器引擎，可将软件编译成一个镜像，然后将镜像发布出去，其他使用者就可以直接使用这个镜像，无需再次配置。
+		Docker主机(Host)：安装了Docker程序的机器(Docker直接安装在操作系统中)
+		Docker客户端(Client)：连接Docker主机的工具，可以对主机进行操作
+		Docker仓库(Resgistry)：用来保存镜像
+		Docker镜像(Images)：软件打包好的镜像，放在Docker仓库中
+		Docker容器(Container)：镜像启动后的实例就是容器，一个镜像运行多次就会产生多个镜像
+	使用步骤：
+		1.安装Docker
+			1.使用yum install docker安装docker
+			2.使用systemctl start docker启动docker，可以用systemctl enable docker设为开机启动
+			3.使用systemctl stop docker停止docker
+		2.去Docker仓库找到这个软件对应的镜像
+			1.docker search mysql 搜索软件，其实就是在https://hub.docker.com/中搜索
+			2.docker pull mysql:5.5 下载镜像，不加版本默认下载latest最新版
+			3.用docker images查看所有镜像
+			4.docker rmi 镜像ID，删除镜像
+		3.直接使用Docker运行镜像，镜像就会生成容器
+			1.docker run --name mytomcat -d tomcat:8.0，--name表示命名，-d表示后台运行，根据镜像启动容器
+			2.docker ps，查看正在运行的docker程序
+			3.docker stop 容器ID或者容器名
+			4.docker ps -a，查看所有的容器，包括运行的和退出的
+			5.docker start 容器ID，启动容器
+			6.docker rm 容器ID，删除容器
+			7.docker logs 容器ID，查看容器日志
+			运行一个可访问的tomcat,docker run -d -p 8888:8080 tomcat，-p将虚拟机的端口映射到tomcat，所以只要访问主机端口即可，-p 主机端口:容器端口
+		4.对容器的启动停止就是对此软件的启动与停止
+			https://hub.docker.com/中有对容器的启动命令规范，例如mysql：docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:tag
+			官网的其他启动方式：$ docker run --name some-mysql -v /my/custom:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:tag
+				-v：将主机的/my/custom文件挂载到/etc/mysql/conf.d文件
+			$ docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:tag --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+				--表示指定mysql的参数

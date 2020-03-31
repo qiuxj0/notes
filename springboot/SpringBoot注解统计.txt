@@ -1,0 +1,44 @@
+@RequestMapping、@PostMapping、@GetMapping、@PutMapping、@DeleteMapping、@ResponseBody、@RestController、@Controller、@Service、@Autowire、@Qualifier、@Resource、@Select、@Insert、
+@Delete、@Update、@Entity、@Table、@Id、@GeneratedValue、@Column、@Repository
+@SpringBootApplication：SpringBoot应用的主配置类注解，SpringBoot以这个类的main方法来启动
+@SpringBootConfiguration：SpringBoot的启动配置类
+@EnableAutoConfiguration：表示开启SpringBoot默认自动配置，这样SpringBoot的自动配置才能生效
+@AutoConfigurationPackage：自动配置导包
+@Bean、@Import、@Compenent都是将对象放入容器中
+	@Bean作用于方法上，将方法的返回值放入容器中，方法名为容器中的名称；
+	@Compenent作用于类中，将类放入容器；
+	@Import作用于类中，将指定的类放入容器中；
+@ConfigurationProperties、@PropertySource、@ImportResource
+	用法：@ConfigurationProperties(prefix = "person")，作用于类上，将默认配置的[prefix]批量匹配到类的属性上
+	用法：@PropertySource(value={"classpath:person.properties"})，作用于类上，将指定的properties文件批量匹配至类的属性上
+	用法：@ImportResource(locations = {"classpath:beans.xml"})，一般用于SpringBoot启动类上，使指定xml配置生效
+@Value("")相当于<property name="" value=""></property>，用于类的属性上
+@Configuration作用于类上，表明这是个配置类，等同于xml配置文件
+@ConditionalOnXXXX：SpringBoot的判断条件，满足此条件才会生效，一般作用域类或方法上
+	@ConditionalOnWebApplication(type = Type.SERVLET)	判断当前应用是否为Web应用
+	@ConditionalOnProperty(prefix = "spring.http.encoding",value = {"enabled"},matchIfMissing = true)	判断配置文件是否有这个配置，如果没有，默认为true
+	@ConditionalOnBean(CharacterEncodingFilter.class) 容器中存在指定类，才能生效
+	@ConditionOnMissingBean(CharacterEncodingFilter.class) 容器中不存在指定类，才能生效
+	@ConditionalOnClass({CharacterEncodingFilter.class})	项目中存在指定类，才能生效
+	@ConditionalOnMissingClass({CharacterEncodingFilter.class})	项目中不存在指定类，才能生效
+	@ConditionalOnExpression("'${mq.comsumer}'.equals('rabbitmq')") 表达式为true，才能生效
+@EnableWebMvc作用于类上，表示全面接管SpringBoot对SpringMVC的默认配置，使得WebMvcAutoConfiguration失效
+@PathVariable("id"):一般用于Restful风格的路径变量获取，和RequestMapping("/emp/{id}/{name}")连用
+@ControllerAdvice增强的@Controller注解可以实现全局异常处理、全局数据绑定、全局数据预处理功能
+@ExceptionHandler(UserNotExistException.class)，配合@ControllerAdvice使用，捕获异常
+@ConfigurationProperties：一般用于在xxxAutoConfiguration类中，用于加载xxxProperties类，并且放入ioc容器中，一般和@ConfigurationProperties连用。
+@Cacheable：主要标注在方法上，将方法的返回结果存入缓存中，如果缓存存在结果，下次调用方法就会直接从缓存中拿
+@CacheEvict：主要标注在方法上，删除缓存
+@CachePut：保证方法被调用，结果被缓存，一般用于更新操作
+@Caching：@CachePut、@CacheEvict、@Cacheable的组合注解，用于定义多个上述注解
+@CacheConfig：作用于类上，表示对当前类中的所有方法设置相同的配置
+@EnableCaching，开启缓存注解使用
+@Async，作用于方法上，表示这是个异步方法
+@EnableAsync，开启异步任务注解
+@Scheduled(corn = "cornExpress")，作用于方法上，定时运行方法
+@EnableScheduling，开启定时任务注解
+@EnableEurekaServer启用注册中心
+@EnableDiscoveryClient 开启发现服务 ，需要将RestTemplate注入到容器中
+@LoadBalanced 负载均衡
+@EnableRabbit，开启基于注解的RabbitMQ
+@RabbitListener(quenes="routeKey")：作用于方法上，监听消息队列，如果监听到则执行方法

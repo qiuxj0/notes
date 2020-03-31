@@ -1,0 +1,27 @@
+1.WEB开发
+	ThymeleafViewResolver.createView(String viewName, Locale locale)可以看到Thymeleaf的重定向和转发用的都是原生的request.getRequestDispatcher(path).forward()和response.sendRedirect(encodedURL);
+	spring.mvc.date-format=yyyy-MM-dd 修改SpringMVC解析日期的格式，默认yyyy/MM/dd
+	Restful风格的变量获取：@PathVariable("id")
+	th:checked="${emp.gender==1}" 属性值判断为true即元素被选中 ，一般用于radio和checkbox
+	th:selected="${dept.id==emp.dept.id}" 用于option的选中
+	发送Restful风格的put和delete请求
+		1.springmvc中配置HiddenHttpMethodFilter
+		2.页面创建一个post表单
+		3.创建一个<input name="_method" value="put" type="hidden"/>
+		注意配置文件需要配置spring.mvc.hiddenmethod.filter.enabled=true参数
+	SpringBoot默认错误处理机制，ErrorMvcAutoConguration
+		DefaultErrorAttributes：返回页面共享信息，timestamp时间戳，status状态码，error错误提示，exception异常对象，message异常消息
+		BasicErrorController：处理/error请求
+		ErrorPageCustomizer：捕捉异常，并发出/error请求
+		DefaultErrorViewResolver
+		一旦请求出错，ErrorPageCustomizer就会生效并发送/error请求，BasicErrorController用于处理/error请求，里面有两个方法errorHtml()和error()，分别用于处理浏览器和其他客户端，浏览器返回html页面，其他客户端返回json数据。浏览器发送请求头accept:text/html，其他客户端为*/*
+			其中浏览器是通过resolveErrorView()方法获取ModelAndView，里面用到了DefaultErrorViewResolver，resolve()方法解析，如果模板引擎可用，则用error/状态码作为返回的视图名称；如果不可用就在静态资源文件夹下找对应的error/状态码页面
+		如果有模板引擎，发生此状态码的错误，会去模板引擎目录下error/错误状态码.html找此页面，匹配所有4开头的状态码页面为4xx.html。优先匹配状态码页面
+		如果没有模板引擎，就到静态文件下的error/状态码页面找。但是不支持提取错误信息
+		运用@ControllerAdvice和@ExceptionHandler(UserNotExistException.class)可以捕获异常并改变返回的JSON数据。
+			request.setAttribute("javax.servlet.error.status_code",400);设置错误状态码，才能返回到对应错误页面
+			
+		如果既要改变json数据，又要保证区分浏览器和其他设备，可以有以下两种方法：
+			1.重写BasicErrorController的处理(或者实现AbstractErrorController部分方法)，由于ErrorMvcAutoConfiguration中存在条件@ConditionalOnMissingBean(value = {ErrorController.class})，太过复杂，不建议
+			2.由于BasicErrorController返回的model对象是由errorAttributes.getErrorAttributes取出来的，而ErrorAttributes又是由ErrorMvcAutoConfiguration注入的，且有这个条件@ConditionalOnMissingBean( value = {ErrorController.class})，如果没有配置，则条件默认的DefaultErrorAttributes来处理。所以返回的JSON数据是在DefaultErrorAttributes.getErrorAttributes()方法中定义的。
+			综上所述，我们可以自己定义一个DefaultErrorAttributes，就可以改变返回的JSON数据。自定义一个DefaultErrorAttributes注解@Component，重写getErrorAttributes，将自定义的Map返回即可。但是要保留上述设置的JSON错误信息，可以将上述的@ExceptionHandler方法中的异常JSON封装到request中，在从自定义的DefaultErrorAttributes取出再封装即可

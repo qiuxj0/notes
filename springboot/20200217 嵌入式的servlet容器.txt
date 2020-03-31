@@ -1,0 +1,13 @@
+1.WEB开发
+	配置嵌入式的Servler容器，比如tomcat
+		1.tomcat在ServerProperty是一个内部类，所以可以通过server.tomcat.xxx改变tomcat的配置
+		2.可以通过配置类注入EmbeddedServletContainerCustomizer(springboot2.0以上用WebServerFactoryCustomizer<ConfigurableWebServerFactory>)定义servlet相关配置
+	SpringBoot中有很多xxxConfigurer，是我们用来定义扩展配置的
+	SpringBoot中有很多xxxCustomizer，是我们用来定制配置的
+	SprigBoot注册Servlet、Filter、Listener，分别使用ServletRegistrationBean、FilterRegistrationBean、ServletListenerRegistrationBean
+		自定义Servlet、Filter、Listener，在配置文件注入@Bean的对象：ServletRegistrationBean、FilterRegistrationBean、ServletListenerRegistrationBean，RegistrationBean对象中把自定义的对象放入返回即可。
+	在DispatcherServletAutoConfiguration中注入了DispatcherServletRegistrationBean，里面的DispatcherServlet默认拦截“/”，但是不拦截jsp请求，想拦截jsp请求就需要配置成拦截"/*"
+	SpringBoot切换jetty(长连接应用)和undertow,因为tomcat是在spring-boot-starter里面，所以需要排除<exclusion><artifactId>spring-boot-starter-tomcat</artifactId><groupId>org.springframework.boot</groupId></exclusion>，然后再添加jetty/undertow就可以了。
+	springboot2.0以上EmbeddedServletContainerCustomizer被WebServerFactoryCustomizer代替
+	EmbeddedWebServerFactoryCustomizerAutoConfiguration 创建嵌入式的Servlet容器，如果存在Tomcat的依赖类，就会创建Tomcat的WebServerFactoryCustomizer，其他同理
+	Servlet容器启动原理

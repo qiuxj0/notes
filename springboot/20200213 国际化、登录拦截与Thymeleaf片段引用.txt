@@ -1,0 +1,18 @@
+1.WEB开发
+	国际化
+		SpringMVC：[1]编写国际化文件(*.properties) [2]使用ResourceBundleMessageSource管理国际化文件 [3]在页面使用fmt:message取出国际化内容
+		SpringBoot：
+			[1]编写国际化文件：文件名+国家代码.properties，例如login_zh_CN.properties、login_en_US.properties。打开properties文件，在Resource Bundle添加国际化内容，在application.properties中配置国际化配置文件目录:spring.messages.basename=包名.基础名
+			[2]在html中可以用Thymeleaf的#{login.tip}取出国家化文件内容
+		打开MessageSourceAutoConfiguration.messageSource()可以看到SpringBoot已经自动配置好了管理国际化资源文件的组件
+		国际化Locale(区域信息对象) LocaleResolver区域信息解析器，在WebMvcAutoConfiguration中默认配置了，可以更换此解析器达到更换国际化语言显示的目的
+			配置自定义的LocaleResolver并注入容器，使得WebMvcAutoConfiguration默认的LocaleResolver失效，重写resolveLocale方法，将request中的语言参数放到Locale对象中返回即可
+	登录拦截器：必须实现HandlerInterceptor接口，在配置类中实现WebMvcConfigurer接口的addInterceptors方法，把自定义的拦截器添加进去，并且可以设置拦截请求和非拦截请求，不用处理静态资源。
+	
+	[1]th:fragment="key"  抽取片段  
+	[2]引入片段 th:insert="~{templatename:selector}" ~{模板名::选择器}或者~{模板名::抽取片段}，模板名就是不带后缀的文件名
+		th:insert	将公共的片段整个插入到指定元素中，指定元素依然存在
+		th:replace	将公共的片段整个插入到指定元素中，指定元素不会存在，是完全替换
+		th:include	将被引入的元素的内容插入到指定元素中，指定元素依然存在，被引入的元素不存在
+	引入的时候可以传参，例如：th:replace="~{common/bar::#topbar(activeuri=emp)}"，在公共部分需要改变的属性中加上此参数的判定，例如th:class="${activeuri=='emp'?'active':''}"
+	thymeleaf时间格式化工具：th:text="${#dates.format(emp.birth,'yyyy-MM-dd HH:mm:ss')}"

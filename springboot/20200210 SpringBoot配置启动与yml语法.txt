@@ -1,0 +1,68 @@
+1.springboot启动
+	<!--将应用打包成一个可以执行的jar包-->
+	 <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+	
+	打包：idea右侧-Maven-[项目]-lifecycle-package
+	
+	几乎所有的依赖都在父项目spring-boot-dependencies中标注，少数没有的要自己标注
+	
+	<!--spring-boot场景启动器，导入了web模块正常运行所需要的依赖组件，比如webmvc、tomcat等-->
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-web</artifactId>
+	</dependency>
+	
+	SpringBoot有很多场景starter，需要用什么功能就导入什么场景启动器，比如redis、mail、freemarker、websocket等
+	
+	【@SpringBootApplication】：SpringBoot应用的主配置类注解，SpringBoot以这个类的main方法来启动
+	组合注解：	@Target({ElementType.TYPE})
+				@Retention(RetentionPolicy.RUNTIME)
+				@Documented
+				@Inherited
+				@SpringBootConfiguration
+				@EnableAutoConfiguration
+				@ComponentScan(
+					excludeFilters = {@Filter(
+					type = FilterType.CUSTOM,
+					classes = {TypeExcludeFilter.class}
+				), @Filter(
+					type = FilterType.CUSTOM,
+					classes = {AutoConfigurationExcludeFilter.class}
+				)}
+				)
+	其中【@SpringBootConfiguration】表示SpringBoot的配置类
+		其中底层就是@Configuration配置类注解
+			@Configuration其实是一个组件，底层有@component，即等于xml中的<bean id="" class=""/>
+	其中【@EnableAutoConfiguration】表示开启SpringBoot默认自动配置，这样配置才能生效。
+		其中【@AutoConfigurationPackage】注解表示自动配置包
+			其中导入了@Import({AutoConfigurationPackages.Registrar.class})类
+				其中的registerBeanDefinitions方法表示将@SpringBootApplication标注的类所在子包的所有组件扫描到Spring容器，这就是为什么@SpringBootApplication下创建@Controller类有效
+		其中@Import({AutoConfigurationImportSelector.class})导入哪些组件的选择器
+			其中selectImports方法将所有需要导入的组件以全类名(xxxAutoConfiguration)的方式返回，这些组件就自动被导入到容器中了				其中调用了getCandidateConfigurations()，又调用了SpringFactoriesLoader.loadFactoryNames()，由代码classLoader.getResources("META-INF/spring.factories")可以看出是从META-INF/spring.factories配置文件获取的，这个文件在org.springframework.boot:spring-boot-autoconfiguration包中，org.springframework.boot.autoconfigure.EnableAutoConfiguration,其中所有的配置类都在包org.springframework.boot.autoconfigure下
+			
+	使用IDEA的Spring Initializr快速创建SpringBoot项目
+		resources文件目录结构
+			static：保存静态资源，比如js,css,images
+			templates：保存所有的模板页面；默认不支持JSP页面；但可以使用模板引擎：比如freemarker,thymeleaf
+			application.properties：修改SpringBoot的一些默认配置
+			
+	YML语法：k: v，注意v前面必须有空格
+		字符串不加单双引号，双引号代表会转义，比如name: "zhangsan \n lisi"，单引号则不会转义
+		对象和Map：第一种写法例如 friends:
+									lastName:zhangsan
+									age:20
+					第二张写法，例如：friends: {lastNmae:zhangsan,age: 20}
+		数组(List、Set)：
+			第一种写法例如pets:
+					- cat
+					- dog
+			第二种写法例如：pets: [cat,dog]
+
+	

@@ -1,0 +1,132 @@
+线程并发
+	双端检锁机制：在synchronized(lock){}前后都加上判断，必须要配合volatile使用，否则有线程安全问题
+		缺点：不一定线程安全，因为代码有指令重排，例如：一个类的实例，1.分配内存空间 2.初始化对象 3.实例指向内存地址，由于2和3顺序不固定，如果是132的顺序，在3后2之前取到对象，则取到的对象为null
+		解决：在声明对象中加volatile，保证指令不会重排，即保证123的顺序
+	CAS：Compare and Swap，即比较再交换。
+		CAS是一种无锁算法，CAS有3个操作数，内存值V，旧的预期值A，要修改的新值B。当且仅当预期值A和内存值V相同时，将内存值V修改为B，否则什么都不做
+		缺点：自循环内存开销大，只能保证一个变量，ABA问题(一个线程把值改了两次改回原值，第二个线程却不能区分)
+		解决ABA问题：
+			1.AtomicReference：原子引用，使其他类原子化使用，AtomicReference<T> atomicReference = new AtomicReference<>();
+			2.AtomicStampedReference：类似于乐观锁，AtomicXXX类加了一个版本号。AtomicStampedReference<T> atomicStampedReference = new AtomicStampedReference<>();
+	集合安全问题
+		1.List存在线程安全问题，Vector性能太低
+			解决方式：1.Collections.synchronizeList(new ArrayList<>())，或者是其他集合类，将不安全的集合类变为安全。
+			2.CopyOnWriteArrayList：写时复制，对读多写少的操作有比较高的并发量，但是如果对象比较大会十分消耗性能
+		2.Set，HashSet底层是HashMap
+			解决方式：1.见上述
+			2.CopyOnWriteArraySet
+		3.Map
+			解决方式：1.见上述
+			2.ConcurrentHashMap
+锁
+	1.公平锁(FairSync)/非公平锁(NonfairSync)：多个线程按照申请的顺序lock。非公平锁不按照顺序lock，性能高，但是可能造成饥饿现象。ReentrantLock默认非公平锁
+	2.可重入锁：线程可以进入任何一个拥有锁的代码块，ReentrantLock和synchronized都是可重入锁
+	3.自旋锁：CAS
+	4.读写锁：ReentrantReadWriteLock
+	ReentrantLock与synchronized的区别
+		0.ReentrantLock是具体类的API层面，synchronized是JVM层面
+		1.ReentrantLock手动释放，synchronized自动释放
+		2.ReentrantLock默认非公平锁，也可以设置公平锁。synchronized非公平锁
+		3.ReentrantLock可设置超时、可中断线程。synchronized不可以
+		4.ReentrantLock可设置condition线程精确通信
+	CountDownLatch：等待其他线程执行完毕，主线程在继续执行，否则一直阻塞。
+	CyclicBarrier：等待线程直到一个临界值，同时执行。
+	Semaphore：设置线程上限，等线程数减少时，线程再释放进来。可以代替synchronized和ReentrantLock
+阻塞队列
+	1.ArrayBlockingQueue：数组的阻塞队列，先进先出
+	2.LinkedBlockingQueue：链表阻塞队列，先进先出，吞吐量高于ArrayBlockingQueue，不设置默认Integer.MAX_VALUE
+	3.SynchronousQueue：不存储元素的队列，每次插入都需要等待另一个释放
+	方法介绍：
+		1.插入
+			1.add(e)：插入失败抛出异常
+			2.offer(e)：返回true或者false
+			3.put(e)：一直阻塞，直到成功
+			4.offer(e,time,unit)：设置超时时间
+		2.移除
+			1.remove()
+			2.poll()
+			3.take()
+			4.poll(time,unit)
+		3.检查
+			1.element()
+			2.peek()
+	Condition：new ReentrantLock().newCondition();
+		线程通信:await()等待，signal()唤醒
+线程池：
+	1.继承Thread类，start()启动
+	2.实现Runnable接口，传入Thread，start()启动
+	3.实现Callable接口，创建FutureTask传入实现类，创建Thread传入FutureTask
+		可使用FutureTask的isDone()和get()方法判断当前线程是否完成，并且取值
+		多个Thread共用一个FutureTask，只会执行一次FutureTask，执行多次需要创建多次FutureTask
+	4.ExecutorService executorService = new ThreadPoolExecutor(核心线程数，最大线程数，线程活跃时间，时间单位，阻塞队列，线程工厂，拒绝策略)
+		核心线程数：
+			CPU密集型：CPU核数+1或者CPU核数*2
+			IO密集型：CPU核数(Runtime.getRuntime().availableProcessors())/(1-阻塞系数(一般为0.8-0.9))
+		拒绝策略
+			1.AbortPolicy(默认)：抛出异常，阻止系统正常运行
+			2.CallerRunsPolicy：回退调用者处理
+			3.DiscardOldestPolicy：丢弃等待最久(最开始)的任务，执行当前任务
+			4.DiscardPolicy：直接丢弃任务，不报异常
+死锁：jps -l 查看进程，jstack 进程ID
+JVM
+	1.垃圾判定
+		1.引用计数算法：相互引用的两个对象则无法释放。
+		2.可达性分析算法：以GC Roots作为起点，向下搜索引用。
+			GC Roots：
+			1.虚拟机栈（栈帧中的本地变量表）中的引用对象
+			2.方法区中的类静态属性引用的对象。
+			3.方法区中的常量引用的对象。
+			4.本地方法栈中JNI（Native方法）的引用对象
+	2.垃圾回收算法
+		1.标记—清除算法：效率不高，有大量碎片
+		2.复制算法：浪费内存空间，幸存者区使用
+		3.标记—整理算法：效率略低
+		4.分代收集算法：复制算法和标记整理法的结合，适合新生代
+	3.垃圾收集器
+		1.Serial收集器（复制算法)：用于新生代，单线程，高效，-XX:+UseSerialGC使用
+		2.Serial Old收集器(标记-整理算法)：用于老年代，单线程，主要用于Client模式
+		3.ParNew收集器(停止-复制算法)，Serial的多线程版
+		4.Parallel Scavenge收集器(停止-复制算法)：用于新生代，-XX:+UseParallelGC使用，XX:ParallelGCThreads=4指定线程数
+		5.Parallel Old收集器(停止-复制算法)：Parallel Scavenge收集器的老年代版本
+		6.CMS收集器(标记-清理算法)：老年代收集器，低停顿，-XX:+UseConcMarkSweepGC使用
+			过程
+				1.初始标记：标记GC Root能直接关联的对象，时间快，需要STW
+				2.并发标记：进一步标记GC Root对象，但不一定标记所有，程序继续运行
+				3.重新标记：修正程序继续运行导致标记变动的一部分，时间远比并发标记短，需要STW
+				4.并发清除
+			缺点
+				1.占用一部分CPU资源，程序变慢
+				2.无法处理浮动垃圾(并发清除，用户线程产生的垃圾),所以需要预留空间存放这些垃圾，-XX:CMSInitiatingOccupancyFraction
+				3.预留空间无法存放浮动垃圾，导致Concurrent Mode Failure错误，会临时启用Serail Old收集器，导致时间更长的Full GC，所以CMSInitiatingOccupancyFraction不能设置太大
+				4."标记-清除"算法导致产生大量碎片
+		7.G1收集器：新生代和老年代并用，能独立管理整个GC堆，不需要其他收集器配合。并发、分代收集、不产生碎片、可预测的停顿(设置收集消耗时间)
+			"-XX:+UseG1GC"：指定使用G1收集器；
+			"-XX:InitiatingHeapOccupancyPercent"：当整个Java堆的占用率达到参数值时，开始并发标记阶段；默认为45；
+			"-XX:MaxGCPauseMillis"：为G1设置暂停时间目标，默认值为200毫秒
+			"-XX:G1HeapRegionSize"：设置每个Region大小，范围1MB到32MB
+	4.对象引用
+		1.强引用：JVM即使OOM也不回收，导致内存泄漏的主要原因，将引用赋值为null，对象通过GC Root不可到达，可被GC回收
+		2.软引用：java.lang.ref.SoftReference，当系统内存充足不会被回收，不足会被回收。使用场景：图片、网页缓存
+		3.弱引用：java.lang.ref.WeakReference，只要GC就会被回收。java.util.WeakHashMap
+		4.虚引用：java.lang.ref.PhantomReference，必须和ReferenceQueue使用，
+	5.OOM
+		1.java.lang.StackOverflowError：创建线程多，或者递归调用导致
+		2.java.lang.OutOfMemoryError: Java heap space：将heap的最大值(-xms和-xmx)调高即可
+		3.java.lang:OutOfMemoryError: GC overhead limit exceeded：对象过多，GC收集效率太低频率太高
+		4.java.lang.OutOfMemoryError：Direct buffer memory：堆外本地内存溢出
+		5.java.lang.OutOfMemoryError：unable to create new native thread：一般发生在linux，默认可以创建1024个线程，超过就会报错
+		6.java.lang.OutOfMemoryError：MetaSpace，1.8以前：java.lang.OutOfMemoryError: PermGen space
+	jinfo [option] <pid> ：查看JVM参数和动态修改部分JVM参数的命令
+	jstat [option] <pid> 相隔时间 打印次数：查看JVM运行时的状态信息
+	jstack [option] <pid>：查看JVM线程快照的命令，定位线程出现长时间卡顿的原因，例如死锁，死循环等。jstack还可以查看程序崩溃时生成的core文件中的stack信息。
+	jmap [option] <pid>：生成堆dump文件和查看堆相关的各类信息的命令，例如jmap -dump:live,format=b,file=dump.hprof 11666
+	jhat [option] [dumpfile]：分析jmap生成dump文件的命令	
+	
+	
+github应用
+	搜索：关键字 in name,description,readme
+		关键字 stars:>=5000、forks:>=5000 stars:1000..2000 ".."在范围之内
+		awesome 关键字，加强搜索，一般用于学习
+	高亮显示：文件地址#L数字 或者 文件地址#L数字-#L数字 高亮显示一行或者多行
+	在repositories上按t键，进入项目类搜索
+	location:jiangxi language:java 地区语言搜索

@@ -1,0 +1,107 @@
+InnoDB：行锁，并发优先 MyISAM：表锁，性能优先
+show engines;查询支持引擎
+show variables like '%storage_engine%';查询使用的引擎
+优化:
+	1.建立索引，默认用B树(类似二叉树)
+		缺点：
+			1.不适合情况：少量数据、频繁更新的字段、很少使用的字段
+			2.查询效率提高，降低增删改的效率
+			3.本身占用内存大
+		优点：
+			1.提高查询效率
+			2.降低CPU使用率
+		create 索引类型 索引名 on 表名(字段)，多个字段表示复合索引
+		alter table 表名 add 索引类型 索引名(字段)
+		drop index 索引名 on 表名
+		show index  from 表名
+		主键不能为null，唯一索引可以是null
+	2.explain
+		用法：explain SQL语句
+		id：编号，编号越大优先查询
+			连表查询时，会先查询数据量小的表。
+			嵌套子查询时，先查内层，再查外层，内层id最大
+		select_type：查询类型
+			PRIMARY：最外层的是
+			SUBQUERY：嵌套在内部的查询都是
+			SIMPLE：不包含子查询和连接查询
+			DERIVED：衍生查询，查询的FROM后面只有一张表(子查询是这张表衍生的一张临时表)，用到了union连接同一张表
+			UNION：用到了union关键字
+			UNION RESULT：union同一张表
+		table：表名
+		type：优化类型
+			system>const>eq_ref>ref>range>index>all，默认为all，一般只能优化到ref和range，最左边一般达不到
+			system：只有一条数据的系统表，或者衍生表就一条数据的主查询
+			const：仅能查到一条数据的SQL语句，必须用Primary key和unique索引查询
+			eq_ref：对每个索引键的查询，返回匹配唯一行的数据。比如连表查询，两张表的主键都是唯一且完全对应
+			ref：索引列查询有多个(包括)
+			range：范围查询，使用 <（=） 、>（=）、between、in(有时候会失效，转为ALL)
+			index：查询全部索引的数据，查询的数据就是索引
+			all：查询所有数据，不加索引就是all
+		possible_key：预测使用的索引，结果不一定准确
+		key：实际使用的索引
+		key_len：实际使用索引的长度，utf8中1个字符占3个字节，如果是可以为null的索引，会自动加1个字节长度，复合索引按照索引顺序查询是否使用计算，如果是varchar要加2个字节标识可变长度
+		ref：表之间的引用
+		row：通过索引查询的数据量
+		Extra：额外信息
+			× using filesort：使用额外排序（查询），性能消耗大。排序的字段没有用到过，就需要再次查询排序
+				建议：使用where的字段去order by，复合索引按照顺序使用，不要跨列或无序使用
+			× using temporary：使用临时表，性能消耗大。一般出现在group by中，group by的字段和查询的字段不一样，就会导致多次查询
+			√ using index：只查询索引，不查询原表，性能提升。
+			× using where：需要回原表查询
+			× impossible where：where后面的查询条件一定为false
+			- using join buffer：SQL优化器加的连接缓存
+	3.优化：
+		单表:
+			1.对使用的字段进行复合索引
+			2.按照复合索引的顺序进行查询，注意in可能会使得索引失效
+		多表：
+			1.多表连接查询时，表1.column=表2.column，相当于两个循环，外层表1，里层表2。程序循环原则外循环少为优，所以优化成表1数据小，表2数据大来联表查询
+			2.left join一般给左表加索引，right join给后表加索引，查询条件where经常用到的字段加索引
+	4.索引失效情况
+		1.in查询
+		2.复合索引跨列、无序使用
+		3.在索引上使用函数、计算
+		4.复合索引，排序靠前的索引失效，会导致排序靠后的也无法使用
+		5.使用!=、<、>、is (not) null，可能会使自身和排序靠后索引失效
+		6.使用like '%name%'开头会失效，使用like 'name%'不会失效。如果要使用'%%'，尽量使用索引覆盖查询
+		7.字段的类型转换会导致索引失效，比如字段是字符串，用数字类型筛选
+		8.or 会使左右两边索引都失效
+	5.其他优化
+		1.子查询中，主查询数据大用in，子查询数据大用exists
+			exists：将主查询的结果放置子查询校验，如果匹配则数据保留，如果子查询没有数据，则主查询就没有数据
+			in：先查子查询的数据，由子查询的数据匹配主查询，若匹配则数据保留
+		2.order by
+			MYSQL4.1之前默认双路，之后默认单路
+			双路排序：扫描两次磁盘，第一次扫描磁盘排序字段在缓存中进行排序，第二次扫描其他字段	
+			单路排序：只读取一次全部字段，在缓存中进行排序，此种排序在数据量过大时会导致多次IO可用set max_length_for_sort_data设置缓存大小，如果max_length_for_sort_data太低，会默认双路
+			优化策略
+				1.选择单双路排序，设置缓存大小
+				2.避免select * ，即使把查询字段全写一遍也比这个快
+				3.复合索引不要跨列使用排序
+				4.保证排序的一致性，不要asc和desc混用
+		3.慢查询：建议调优使用，生产关闭。show variables like '%slow_query_log'  可以看到默认是off，set gloabal slow_query_log=1内存(临时)开启，set global slow_query_log_file= 设置慢查询日志目录，永久开启在my.ini配置文件配置这两个参数即可。
+			慢查询阈值：long_query_time 默认10秒，设置和上述一致，需要重新登录
+			慢查询次数：show global status like 'slow_queries'
+			慢查询日志文件：show variables like 'slow_query_log_file'
+			mysqldumpslow：mysql内置慢查询工具
+				查询返回记录最多的3个SQL：mysqldumpslow -s r -t 3 慢查询文件路径
+				查询访问次数最多的3个SQL：mysqldumpslow -s c -t 3 慢查询文件路径
+				按照时间排序，查询前3条包含left join的SQL：mysqldumpslow -s t -t 3 -g "left join" 慢查询文件路径
+		4.海量数据优化
+			创建存储过程，报错you have an error in your SQL syntax，需要开启log_bin_trust_function_creators=1防止和慢查询冲突
+			开启SQL诊断：show profiles：显示所有profiling记录的SQL，需要打开profiling=1
+			SQL诊断：show profile all for query show profiles查询的SQL的ID，all可以改成想查看的信息 比如cpu、io
+			全部日志查询(仅在调优打开，生产一定要关闭)
+				1.general_log=1开启全局日志，log_output='table'设置SQL记录到general_log表里
+				2.log_output='file'更改文件记录方式,general_log='on'，log_output_file='文件名'设置SQL记录到文件中
+				2.查询记录的SQL：在mysql(数据库名)的general_log的表里。
+		5.锁
+			表锁分析：show status like 'table%'
+			Table_locks_immediate 表可被锁的数量
+			Table_locks_waited 需要等待的表锁数量
+			二者相除大于5000推荐用innoDB，反之用MyISAM
+			行锁分析：show status like '%innodb_row_lock%'
+
+			行锁遇到索引失效时（如类型转换），会升级为行锁。但是类型转换的范围查询会对范围内的不存在值进行间隙锁（行锁）
+			
+			
